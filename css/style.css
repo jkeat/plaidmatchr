@@ -1,0 +1,53 @@
+button {
+	cursor: pointer;
+}
+
+#overlay {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	-o-transform : scaleX(-1) translateX(29%);
+	-webkit-transform : scaleX(-1) translateX(29%);
+	transform : scaleX(-1) translateX(29%);
+	-ms-filter : fliph; /*IE*/
+	filter : fliph; /*IE*/
+
+	width : 600px;
+	height : 450px;
+}
+
+#videoel {
+	-o-transform : scaleX(-1) translateX(29%);
+	-webkit-transform : scaleX(-1) translateX(29%);
+	transform : scaleX(-1) translateX(29%);
+	-ms-filter : fliph; /*IE*/
+	filter : fliph; /*IE*/
+
+	width : 600px;
+	height : 450px;
+}
+
+.videoContainer {
+	position: relative;
+	text-align: center;
+	width: 300px;
+    overflow: hidden;
+    margin-left: auto;
+    margin-right: auto;
+    margin-top: 80px;
+}
+.videoContainer canvas {
+	position: absolute;
+	left: 0;
+	right: 0;
+	margin: auto;
+}
+#typePlaid {
+	position: absolute;
+	width: 100%;
+	text-align: center;
+	top: 65px;
+	z-index: 10;
+	text-shadow: 1px 1px 1px rgba(0,0,0,.6);
+	font-size: 1.5rem;
+}

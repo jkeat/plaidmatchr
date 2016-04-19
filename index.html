@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	
+	<title>Plaid Matchr</title>
+
+	<link rel="stylesheet" type="text/css" href="css/furtive.min.css">
+	<link rel="stylesheet" type="text/css" href="css/style.css">
+</head>
+<body>
+	<h2 id="typePlaid" class="fnt--white">Plaid Matchr</h2>
+	<div class="measure">
+		<div class="videoContainer">
+			<video id="videoel" width="400" height="300" preload="auto" loop></video>
+			<canvas id="overlay" width="400" height="300"></canvas>
+			<div id="controls">
+				<button class="btn--green" disabled="disabled" onclick="analyzeVideo()" id="gobutton">Wait, loading video</button>
+			</div>
+		</div>
+	</div>
+
+	<script src="js/utils.js"></script>
+	<script src="js/clmtrackr.js"></script>
+	<script src="js/model.js"></script>
+	<script src="js/emotion_classifier.js"></script>
+	<script src="js/emotion_model.js"></script>
+
+	<script>
+		// getUserMedia only works over https in Chrome 47+, so we redirect to https. Also notify user if running from file.
+		if (window.location.protocol == "file:") {
+			alert("You seem to be running this directly from a file. Note that this only works when served from a server or localhost due to canvas cross-domain restrictions.");
+		} else if (window.location.hostname !== "localhost" && window.location.protocol !== "https:"){
+			window.location.protocol = "https";
+		}
+	</script>
+
+	<script>
+		var vid = document.getElementById('videoel');
+		var overlay = document.getElementById('overlay');
+		var overlayCC = overlay.getContext('2d');
+		
+		/********** check and set up video/webcam **********/
+
+		function enablestart() {
+			var gobutton = document.getElementById('gobutton');
+			gobutton.innerHTML = "Find Your Plaid";
+			gobutton.disabled = null;
+			startVideo();
+		}
+		
+		/*var insertAltVideo = function(video) {
+			if (supports_video()) {
+				if (supports_ogg_theora_video()) {
+					video.src = "../media/cap12_edit.ogv";
+				} else if (supports_h264_baseline_video()) {
+					video.src = "../media/cap12_edit.mp4";
+				} else {
+					return false;
+				}
+				//video.play();
+				return true;
+			} else return false;
+		}*/
+		navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+		window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
+
+		// check for camerasupport
+		if (navigator.getUserMedia) {
+			// set up stream
+			
+			var videoSelector = {video : true};
+			if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
+				var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
+				if (chromeVersion < 20) {
+					videoSelector = "video";
+				}
+			};
+		
+			navigator.getUserMedia(videoSelector, function( stream ) {
+				if (vid.mozCaptureStream) {
+					vid.mozSrcObject = stream;
+				} else {
+					vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
+				}
+				vid.play();
+			}, function() {
+				//insertAltVideo(vid);
+				alert("There was some problem trying to fetch video from your webcam. If you have a webcam, please make sure to accept when the browser asks for access to your webcam.");
+			});
+		} else {
+			//insertAltVideo(vid);
+			alert("This demo depends on getUserMedia, which your browser does not seem to support. :(");
+		}
+
+		vid.addEventListener('canplay', enablestart, false);
+		
+		/*********** setup of emotion detection *************/
+
+		var ctrack = new clm.tracker({useWebGL : true});
+		ctrack.init(pModel);
+
+		function startVideo() {
+			// start video
+			vid.play();
+			// start tracking
+			ctrack.start(vid);
+			// start loop to draw face
+			drawLoop();
+		}
+		
+		function drawLoop() {
+			requestAnimFrame(drawLoop);
+			overlayCC.clearRect(0, 0, 400, 300);
+			//psrElement.innerHTML = "score :" + ctrack.getScore().toFixed(4);
+			if (ctrack.getCurrentPosition()) {
+				ctrack.draw(overlay);
+			}
+			var cp = ctrack.getCurrentParameters();
+			
+			var er = ec.meanPredict(cp);
+			if (er) {
+				for (var i = 0;i < er.length;i++) {
+					if (er[i].value > 0.4) {
+						// document.getElementById('icon'+(i+1)).style.visibility = 'visible';
+					} else {
+						// document.getElementById('icon'+(i+1)).style.visibility = 'hidden';
+					}
+				}
+			}
+		}
+
+		function analyzeVideo() {
+			var cp = ctrack.getCurrentParameters();
+			
+			var er = ec.meanPredict(cp);
+			if (er) {
+				// 1: angry
+				// 2: sad
+				// 3: surprised
+				// 4: happy
+				for (var i = 0;i < er.length;i++) {
+					console.log(er[i].value);
+				}
+				var isAngry = er[0].value > 0.3;
+				var isSad = er[1].value > 0.6;
+				var isSurprised = er[2].value > 0.08;
+				var isHappy = er[3].value > 0.05;
+				var bg;
+				if (isAngry && isSad) {
+					bg = "Gingham";
+				} else if (isSurprised && isHappy) {
+					bg = "Windowpane Check";
+				} else if (isHappy) {
+					bg = "Madras";
+				} else if (isSurprised) {
+					bg = "Tattersall";
+				} else if (isAngry) {
+					bg = "Tartan";
+				} else if (isSad) {
+					bg = "Glen";
+				} else {
+					alert("Could not detect a plaid that works on you right now. Let your emotions flow, and try again.")
+				}
+				if (bg) {
+					var fileName = bg.replace(/\s/g, '').toLowerCase();
+					document.body.style.background = "url(img/plaid/" + fileName + ".jpg)";
+					document.getElementById('typePlaid').innerHTML = bg;
+				} else {
+					document.body.style.background = "#fff";
+					document.getElementById('typePlaid').innerHTML = "Plaid Matchr";
+				}
+			} else {
+				alert("Error. Try again.");
+			}
+		}
+		
+		var ec = new emotionClassifier();
+		ec.init(emotionModel);
+		var emotionData = ec.getBlank();	
+
+	</script>
+</body>
+</html>
